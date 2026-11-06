@@ -1,0 +1,23 @@
+# Build outputs
+build/
+dist/
+_deps/
+_probe/
+.testdata/
+
+# Test server runtime artefacts
+tests/server/host_ecdsa.key
+tests/server/host_rsa.key
+tests/server/sftp_root/
+tests/server/server.log
+tests/server/server.err.log
+tests/server/__pycache__/
+
+# Editor and OS noise
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+Thumbs.db
+desktop.ini
