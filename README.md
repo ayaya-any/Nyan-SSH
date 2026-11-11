@@ -21,6 +21,7 @@
 - 保存任意数量的连接配置，侧边栏搜索、最近使用排序。
 - 密码和私钥口令使用 **Windows DPAPI**（当前用户绑定）加密后写入 `sessions.json`，绝不明文落盘。
 - **记住登录信息 / 自动登录**：启动时自动连接所有勾选自动登录且凭据完整的会话。
+- **会话延迟显示**：连接成功后每 5 秒探测一次到主机的 TCP 往返延迟，工具栏按延迟分级着色。
 - 支持密码与 **公钥认证**（libssh2 + OpenSSL，读取 PEM 格式 RSA / ECDSA / Ed25519 私钥，可选口令）。
 - **主机密钥 TOFU 校验**：首次连接弹出指纹确认，后续连接自动比对；密钥变化时显示红色告警，防止中间人攻击。
 - 认证失败时弹出密码/口令重试对话框，可选择把新凭据加密保存。
@@ -38,7 +39,7 @@
 - Material 3 风格的悬浮标签输入框、状态层按钮、涟漪、开关、分段控件、卡片、Snackbar、无边框对话框。
 - **Material Icons** 图标字体统一按钮、输入框、文件列表与标题栏图标；专用图形保留 SVG 回退。
 - **VS 深色 / VS 浅色** 两套主题，参考 Visual Studio 2026 / VS Code 的配色与终端 ANSI 色板。
-- Segoe UI Variable + Cascadia Mono，高 DPI 缩放，深浅主题即时切换。
+- **Segoe UI Variable** 界面字体 + **Cascadia Mono** 终端字体，高 DPI 缩放，深浅主题即时切换。
 
 ## 截图
 
@@ -61,7 +62,7 @@
 - Windows 10/11 x64。
 - Visual Studio 2022 或 2026，安装“使用 C++ 的桌面开发”（MSVC v143/v145）。
 - CMake ≥ 3.28（VS 自带版本即可）。
-- Qt **6.12.0**，套件 `msvc2022_64`，需要 `Widgets`、`Svg`、`Test` 模块。
+- Qt **6.12.0**，套件 `msvc2022_64`，需要 `Widgets`、`Svg`、`Network`、`Test` 模块。
   默认自动探测 `D:\Qt\6.12.0\msvc2022_64` 或 `C:\Qt\6.12.0\msvc2022_64`；可通过 `-DQT_ROOT=...` 指定。
 - **OpenSSL 3.0+** 开发库。Windows 推荐：
   ```powershell
@@ -217,6 +218,8 @@ docs/          截图与设计产物
 - 私钥仅支持 PEM 格式；OpenSSH 新格式需先转为 PEM。认证方式为密码或公钥；不支持 keyboard-interactive / OTP 多因素认证。
 - 终端使用 Unicode 宽度近似算法，极端 emoji/组合字符可能与系统终端略有差异。
 - 当前应用仍仅支持 Windows：SSH 加密层已经使用可移植的 OpenSSL，但凭据存储仍依赖 DPAPI，窗口标题栏和打包脚本仍含 Win32/Windows 逻辑。要完整跨平台还需替换这些平台层。
+- 会话延迟为到主机的 TCP 连接往返近似值（每 5 秒一次），不是 SSH 协议内的 keepalive RTT；主机禁连或端口不可达时会显示 “—”。
+- 等宽字体下拉框通过 `QFontDatabase::isFixedPitch()` 精确筛选；若系统字体未正确报告该属性，个别字体可能不会出现。
 
 ## 许可
 

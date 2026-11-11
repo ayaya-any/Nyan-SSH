@@ -25,6 +25,7 @@ class TerminalWidget;
 namespace nyan::ui {
 
 class FilePanel;
+class LatencyProbe;
 class MButton;
 class MIconButton;
 class MSpinner;
@@ -71,6 +72,7 @@ private:
     void updateToolbar();
     void setState(SshState state, const QString &detail);
     void updateStatusDot(const QColor &color);
+    void updateLatency(int milliseconds);
     void updateTitle();
 
     void handleHostKeyPrompt(const QString &keyType, const QString &fingerprint,
@@ -106,6 +108,11 @@ private:
     QLabel *m_statusDot = nullptr;
     QLabel *m_stateLabel = nullptr;
     QLabel *m_targetLabel = nullptr;
+    QWidget *m_latencyChip = nullptr;
+    QLabel *m_latencyIcon = nullptr;
+    QLabel *m_latencyText = nullptr;
+    LatencyProbe *m_latencyProbe = nullptr;
+    int m_latencyMs = -1;
     MIconButton *m_securityButton = nullptr;
     MIconButton *m_sftpButton = nullptr;
     MIconButton *m_reconnectButton = nullptr;

@@ -59,7 +59,7 @@ public:
     explicit TabCloseButton(QWidget *parent = nullptr)
         : QAbstractButton(parent)
     {
-        setFixedSize(28, 28);
+        setFixedSize(39, 28);
         setCursor(Qt::PointingHandCursor);
         setFocusPolicy(Qt::NoFocus);
         setToolTip(QStringLiteral("关闭标签页"));
@@ -68,7 +68,7 @@ public:
         connect(&Theme::instance(), &Theme::changed, this, qOverload<>(&QWidget::update));
     }
 
-    QSize sizeHint() const override { return QSize(28, 28); }
+    QSize sizeHint() const override { return QSize(39, 28); }
 
 protected:
     void enterEvent(QEnterEvent *event) override
@@ -90,7 +90,9 @@ protected:
         painter.setRenderHint(QPainter::Antialiasing, true);
 
         const bool hovered = underMouse() && isEnabled();
-        const QRectF hoverRect(2, (height() - 20) / 2.0, 20, 20);
+        // Keep the hit area wide, but place the visible control with the same
+        // left/right breathing room as the tab's 16px content padding.
+        const QRectF hoverRect(4, (height() - 20) / 2.0, 20, 20);
         if (hovered) {
             QColor hoverFill = palette.danger;
             hoverFill.setAlpha(isDown() ? 90 : 36);
@@ -102,11 +104,11 @@ protected:
         QColor iconColor = hovered ? palette.danger : palette.textMuted;
         if (!isEnabled())
             iconColor = palette.textFaint;
-        const int iconSize = 14;
-        // Center the icon at x=12, leaving a 9px gap on the right.
-        const QRect target(5, (height() - iconSize) / 2, iconSize, iconSize);
-        painter.drawPixmap(target, Icons::pixmap(QStringLiteral("close"), iconColor, iconSize,
-                                                 devicePixelRatioF()));
+        painter.setPen(QPen(iconColor, 1.8, Qt::SolidLine, Qt::RoundCap));
+        const QPointF center(14, height() / 2.0);
+        constexpr qreal half = 4.0;
+        painter.drawLine(center + QPointF(-half, -half), center + QPointF(half, half));
+        painter.drawLine(center + QPointF(-half, half), center + QPointF(half, -half));
     }
 };
 
@@ -121,9 +123,11 @@ QIcon dotIcon(const QColor &color)
     QColor glow = color;
     glow.setAlpha(55);
     painter.setBrush(glow);
-    painter.drawEllipse(QRectF(1, 1, 10, 10));
+    // The tab text's optical center sits ~2 logical pixels below the icon
+    // center chosen by QTabBar; offset the dot inside its 12px icon box.
+    painter.drawEllipse(QRectF(1.5, 3.5, 9, 9));
     painter.setBrush(color);
-    painter.drawEllipse(QRectF(3.2, 3.2, 5.6, 5.6));
+    painter.drawEllipse(QRectF(3.4, 5.4, 5.2, 5.2));
     painter.end();
     return QIcon(pixmap);
 }
@@ -687,7 +691,7 @@ void MainWindow::showAbout()
     Dialogs::message(this, QStringLiteral("关于 Nyan SSH"),
                      QStringLiteral("Nyan SSH %1\n\n"
                                     "Material 风格 + VS2026 配色的 SSH 客户端。\n"
-                                    "CMake · Qt %2 · C++20 · libssh2 · WinCNG\n\n"
+                                    "CMake · Qt %2 · C++20 · libssh2 · OpenSSL\n\n"
                                     "功能：xterm 终端、SFTP 文件管理、会话记忆、"
                                     "DPAPI 凭据加密与自动登录。")
                          .arg(QApplication::applicationVersion(), QString::fromLatin1(qVersion())),

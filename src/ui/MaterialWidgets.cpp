@@ -286,7 +286,9 @@ void MButton::paintEvent(QPaintEvent *)
     if (iconWidth > 0) {
         const QPixmap iconPixmap = Icons::pixmap(m_iconName, content, m_iconSize, devicePixelRatioF());
         if (!iconPixmap.isNull()) {
-            const int iconY = centerY - m_iconSize / 2;
+            // Nudge down one pixel: the icon ink is optically centered on the
+            // text's cap-height center rather than the glyph box center.
+            const int iconY = centerY - m_iconSize / 2 + 1;
             painter.drawPixmap(QRect(x, iconY, m_iconSize, m_iconSize), iconPixmap);
         }
         x += iconWidth + gap;

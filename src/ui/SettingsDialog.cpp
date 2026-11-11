@@ -6,11 +6,28 @@
 #include <QFontDatabase>
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QLineEdit>
 #include <QSpinBox>
 #include <QVBoxLayout>
 
+#include <algorithm>
+
 namespace nyan::ui {
 namespace {
+
+/// QSpinBox's stylesheet padding does not move the internal line edit text on
+/// all styles.  Set the editor's text margins directly so the value keeps a
+/// stable inset from the frame at every DPI.
+class SettingsSpinBox : public QSpinBox {
+public:
+    explicit SettingsSpinBox(QWidget *parent = nullptr)
+        : QSpinBox(parent)
+    {
+        lineEdit()->setTextMargins(12, 0, 4, 0);
+        lineEdit()->setStyleSheet(
+            QStringLiteral("QLineEdit { background: transparent; border: none; padding: 0; }"));
+    }
+};
 
 QLabel *sectionTitle(const QString &text)
 {
@@ -74,27 +91,32 @@ SettingsDialog::SettingsDialog(QWidget *parent, const AppSettings &current)
     fontColumn->addWidget(new QLabel(QStringLiteral("等宽字体")));
     m_fontFamily = new QComboBox;
     QStringList families;
+    QFontDatabase database;
     const QStringList allFamilies = QFontDatabase::families();
     for (const QString &family : allFamilies) {
-        if (family.contains(QStringLiteral("Mono"), Qt::CaseInsensitive)
-            || family.contains(QStringLiteral("Consolas"), Qt::CaseInsensitive)
-            || family.contains(QStringLiteral("Courier"), Qt::CaseInsensitive)
-            || family.contains(QStringLiteral("Cascadia"), Qt::CaseInsensitive)) {
+        if (database.isFixedPitch(family))
             families.append(family);
-        }
     }
-    if (!m_settings.terminalFontFamily.isEmpty() && !families.contains(m_settings.terminalFontFamily))
+    std::sort(families.begin(), families.end(), [](const QString &a, const QString &b) {
+        return a.compare(b, Qt::CaseInsensitive) < 0;
+    });
+    if (families.isEmpty())
+        families << QStringLiteral("Cascadia Mono") << QStringLiteral("Consolas");
+    if (!m_settings.terminalFontFamily.isEmpty()
+        && !families.contains(m_settings.terminalFontFamily)) {
         families.prepend(m_settings.terminalFontFamily);
+    }
     families.removeDuplicates();
     m_fontFamily->addItems(families);
     m_fontFamily->setCurrentText(m_settings.terminalFontFamily);
+    m_fontFamily->setToolTip(QStringLiteral("仅列出系统检测为等宽（fixed pitch）的字体"));
     fontColumn->addWidget(m_fontFamily);
     fontLayout->addLayout(fontColumn, 1);
 
     auto *sizeColumn = new QVBoxLayout;
     sizeColumn->setSpacing(5);
     sizeColumn->addWidget(new QLabel(QStringLiteral("字号")));
-    m_fontSize = new QSpinBox;
+    m_fontSize = new SettingsSpinBox;
     m_fontSize->setRange(7, 32);
     m_fontSize->setValue(m_settings.terminalFontSize);
     m_fontSize->setSuffix(QStringLiteral(" pt"));
@@ -116,7 +138,7 @@ SettingsDialog::SettingsDialog(QWidget *parent, const AppSettings &current)
     scrollbackText->addWidget(scrollbackTitle);
     scrollbackText->addWidget(scrollbackHint);
     scrollbackLayout->addLayout(scrollbackText, 1);
-    m_scrollback = new QSpinBox;
+    m_scrollback = new SettingsSpinBox;
     m_scrollback->setRange(500, 100000);
     m_scrollback->setSingleStep(500);
     m_scrollback->setValue(m_settings.scrollbackLines);

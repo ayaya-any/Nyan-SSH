@@ -8,6 +8,7 @@
 #include "ui/Dialogs.h"
 #include "ui/FilePanel.h"
 #include "ui/Icons.h"
+#include "ui/LatencyProbe.h"
 #include "ui/MaterialWidgets.h"
 #include "ui/Theme.h"
 
@@ -51,6 +52,11 @@ SessionTab::SessionTab(const SessionProfile &profile, SessionStore *sessions, Ho
     buildUi();
     if (m_settings)
         applySettings(m_settings);
+    m_latencyProbe = new LatencyProbe(this);
+    m_latencyProbe->setEndpoint(m_profile.host, static_cast<quint16>(m_profile.port));
+    connect(m_latencyProbe, &LatencyProbe::latencyChanged, this, &SessionTab::updateLatency);
+    connect(&Theme::instance(), &Theme::changed, this, [this] { updateLatency(m_latencyMs); });
+    updateLatency(-1);
     updateTitle();
     updateToolbar();
 }
@@ -58,6 +64,10 @@ SessionTab::SessionTab(const SessionProfile &profile, SessionStore *sessions, Ho
 SessionTab::~SessionTab()
 {
     m_destroying = true;
+    if (m_latencyProbe) {
+        m_latencyProbe->stop();
+        m_latencyProbe = nullptr;
+    }
     if (m_filePanel) {
         m_filePanel->shutdown();
         delete m_filePanel;
@@ -94,6 +104,24 @@ void SessionTab::buildUi()
                                   .arg(m_profile.host, m_profile.username)
                                   .arg(m_profile.port));
     toolbarLayout->addWidget(m_targetLabel);
+
+    m_latencyChip = new QWidget;
+    m_latencyChip->setObjectName(QStringLiteral("latencyChip"));
+    m_latencyChip->setAttribute(Qt::WA_StyledBackground, true);
+    m_latencyChip->setFixedHeight(22);
+    m_latencyChip->setVisible(false);
+    auto *latencyLayout = new QHBoxLayout(m_latencyChip);
+    latencyLayout->setContentsMargins(8, 0, 8, 0);
+    latencyLayout->setSpacing(5);
+    m_latencyIcon = new QLabel;
+    m_latencyIcon->setFixedSize(14, 14);
+    latencyLayout->addWidget(m_latencyIcon, 0, Qt::AlignVCenter);
+    m_latencyText = new QLabel(QStringLiteral("—"));
+    m_latencyText->setFont(Theme::instance().uiFont(8.3, QFont::DemiBold));
+    latencyLayout->addWidget(m_latencyText, 0, Qt::AlignVCenter);
+    m_latencyChip->setToolTip(QStringLiteral("到 SSH 主机的网络往返延迟（TCP 探测）"));
+    toolbarLayout->addWidget(m_latencyChip, 0, Qt::AlignVCenter);
+
     toolbarLayout->addStretch();
 
     m_securityButton = new MIconButton(QStringLiteral("shield"), QStringLiteral("主机密钥"), toolbar);
@@ -512,6 +540,15 @@ void SessionTab::setState(SshState state, const QString &detail)
 {
     m_state = state;
     m_stateDetail = detail;
+    if (m_latencyProbe) {
+        if (state == SshState::Connected) {
+            m_latencyProbe->start();
+        } else {
+            m_latencyProbe->stop();
+            if (m_latencyMs >= 0)
+                updateLatency(-1);
+        }
+    }
     if (m_stateLabel)
         m_stateLabel->setText(sshStateLabel(state));
     if (m_stateLabel)
@@ -551,6 +588,37 @@ void SessionTab::updateToolbar()
     m_reconnectButton->setEnabled(!busy);
     m_disconnectButton->setEnabled(connected || busy);
     m_sftpButton->setActive(isFilePanelVisible());
+    if (m_latencyChip)
+        m_latencyChip->setVisible(connected);
+}
+
+void SessionTab::updateLatency(int milliseconds)
+{
+    m_latencyMs = milliseconds;
+    if (!m_latencyChip || !m_latencyIcon || !m_latencyText)
+        return;
+
+    const Palette &palette = Theme::instance().palette();
+    QColor color = palette.textMuted;
+    QString text = QStringLiteral("—");
+    QString tooltip = QStringLiteral("到 SSH 主机的网络往返延迟（TCP 探测）");
+    if (milliseconds >= 0) {
+        text = milliseconds == 0 ? QStringLiteral("<1 ms")
+                                 : QStringLiteral("%1 ms").arg(milliseconds);
+        color = milliseconds < 80 ? palette.success
+                                  : (milliseconds < 200 ? palette.warning : palette.danger);
+        tooltip = QStringLiteral("到 SSH 主机的网络往返延迟：%1 ms\n"
+                                 "（通过 TCP 连接探测，每 5 秒更新）")
+                      .arg(milliseconds);
+    } else {
+        tooltip += QStringLiteral("\n当前探测失败");
+    }
+
+    m_latencyText->setText(text);
+    m_latencyText->setStyleSheet(QStringLiteral("color:%1;").arg(color.name()));
+    m_latencyIcon->setPixmap(Icons::pixmap(QStringLiteral("speed"), color, 14,
+                                           devicePixelRatioF()));
+    m_latencyChip->setToolTip(tooltip);
 }
 
 void SessionTab::handleHostKeyPrompt(const QString &keyType, const QString &fingerprint,

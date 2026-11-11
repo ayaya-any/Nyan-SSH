@@ -28,7 +28,7 @@ const QString &family()
 const QHash<QString, char32_t> &glyphs()
 {
     static const QHash<QString, char32_t> map = [] {
-        QHash<QString, char32_t> aliases = {
+        const QHash<QString, char32_t> overrides = {
             {QStringLiteral("alert"), 0xE002},          // warning
             {QStringLiteral("arrow-left"), 0xE5C4},     // arrow_back
             {QStringLiteral("arrow-up"), 0xE5D8},       // arrow_upward
@@ -91,6 +91,7 @@ const QHash<QString, char32_t> &glyphs()
 
         // The official codepoints file makes every Material icon name
         // available, not just the aliases used by the current UI.
+        QHash<QString, char32_t> map;
         QFile file(QStringLiteral(":/fonts/MaterialIcons-Regular.codepoints"));
         if (file.open(QIODevice::ReadOnly | QIODevice::Text)) {
             while (!file.atEnd()) {
@@ -101,11 +102,16 @@ const QHash<QString, char32_t> &glyphs()
                 bool ok = false;
                 const uint codepoint = line.mid(separator + 1).trimmed().toUInt(&ok, 16);
                 if (ok)
-                    aliases.insert(QString::fromLatin1(line.left(separator)),
-                                   static_cast<char32_t>(codepoint));
+                    map.insert(QString::fromLatin1(line.left(separator)),
+                               static_cast<char32_t>(codepoint));
             }
         }
-        return aliases;
+        // Explicit aliases win over canonical names: "maximize" means a
+        // square, "minimize" a bar, and "restore" overlapping windows even
+        // though the font also has unrelated canonical icons by those names.
+        for (auto it = overrides.cbegin(); it != overrides.cend(); ++it)
+            map.insert(it.key(), it.value());
+        return map;
     }();
     return map;
 }
@@ -158,29 +164,60 @@ QPixmap pixmap(const QString &name, const QColor &color, int size, qreal deviceP
     const int pixelSize = qMax(1, qRound(size * dpr));
     QImage image(pixelSize, pixelSize, QImage::Format_ARGB32_Premultiplied);
     image.fill(Qt::transparent);
-    image.setDevicePixelRatio(dpr);
+
+    // Render on a large, DPR-independent canvas and locate the actual painted
+    // ink.  QFontMetricsF's tight bounds and drawText baselines can differ by a
+    // few pixels at icon sizes; cropping the real pixels guarantees that the
+    // visible glyph is centered and never touches the pixmap edge.
+    constexpr int canvasSize = 384;
+    constexpr int fontSize = 256;
+    QImage canvas(canvasSize, canvasSize, QImage::Format_ARGB32_Premultiplied);
+    canvas.fill(Qt::transparent);
 
     QFont font(family());
-    // Icon fonts carry a little internal padding; compensate so the visual
-    // weight is close to the previous SVG icon set at the same logical size.
-    font.setPixelSize(qMax(1, qRound(size * 1.30)));
+    font.setPixelSize(fontSize);
     font.setStyleStrategy(QFont::PreferAntialias);
 
     const QString text(1, QChar(static_cast<char16_t>(glyph.value())));
-    const QFontMetricsF metrics(font);
-    const QRectF ink = metrics.tightBoundingRect(text);
+    QPainter glyphPainter(&canvas);
+    glyphPainter.setRenderHint(QPainter::Antialiasing, true);
+    glyphPainter.setRenderHint(QPainter::TextAntialiasing, true);
+    glyphPainter.setFont(font);
+    glyphPainter.setPen(color);
+    glyphPainter.drawText(QPointF(48, 304), text);
+    glyphPainter.end();
+
+    int minX = canvas.width();
+    int minY = canvas.height();
+    int maxX = -1;
+    int maxY = -1;
+    for (int y = 0; y < canvas.height(); ++y) {
+        const auto *line = reinterpret_cast<const QRgb *>(canvas.constScanLine(y));
+        for (int x = 0; x < canvas.width(); ++x) {
+            if (qAlpha(line[x]) == 0)
+                continue;
+            minX = qMin(minX, x);
+            minY = qMin(minY, y);
+            maxX = qMax(maxX, x);
+            maxY = qMax(maxY, y);
+        }
+    }
+    if (maxX < minX || maxY < minY)
+        return {};
+
+    const QRect inkRect(minX, minY, maxX - minX + 1, maxY - minY + 1);
+    const qreal extent = pixelSize * 0.92;
+    const qreal scale = qMin(extent / inkRect.width(), extent / inkRect.height());
+    const qreal width = inkRect.width() * scale;
+    const qreal height = inkRect.height() * scale;
 
     QPainter painter(&image);
     painter.setRenderHint(QPainter::Antialiasing, true);
-    painter.setRenderHint(QPainter::TextAntialiasing, true);
-    painter.setFont(font);
-    painter.setPen(color);
-    if (!ink.isEmpty()) {
-        const qreal x = (size - ink.width()) / 2.0 - ink.left();
-        const qreal y = (size - ink.height()) / 2.0 - ink.top();
-        painter.drawText(QPointF(x, y), text);
-    }
+    painter.setRenderHint(QPainter::SmoothPixmapTransform, true);
+    painter.drawImage(QRectF((pixelSize - width) / 2.0, (pixelSize - height) / 2.0, width, height),
+                      canvas, QRectF(inkRect));
     painter.end();
+    image.setDevicePixelRatio(dpr);
 
     QPixmap result = QPixmap::fromImage(image);
     if (store.size() > 512)

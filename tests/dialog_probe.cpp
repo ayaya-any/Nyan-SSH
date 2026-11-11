@@ -29,6 +29,8 @@ int main(int argc, char **argv)
 
     const QStringList args = app.arguments();
     const QString mode = args.size() > 1 ? args.at(1) : QStringLiteral("settings");
+    const bool grabOnly = mode.endsWith(QStringLiteral("-grab"));
+    const QString dialogMode = grabOnly ? mode.chopped(5) : mode;
     const bool light = args.contains(QStringLiteral("light"));
     Theme::instance().setMode(light ? ThemeMode::Light : ThemeMode::Dark);
 
@@ -40,26 +42,26 @@ int main(int argc, char **argv)
     background->show();
 
     MDialog *dialog = nullptr;
-    if (mode == QStringLiteral("settings")) {
+    if (dialogMode == QStringLiteral("settings")) {
         AppSettings settings;
         settings.theme = light ? ThemeMode::Light : ThemeMode::Dark;
         dialog = new SettingsDialog(background, settings);
-    } else if (mode == QStringLiteral("connection")) {
+    } else if (dialogMode == QStringLiteral("connection")) {
         dialog = new ConnectionDialog(background, ConnectionDialog::Mode::Create);
-    } else if (mode == QStringLiteral("connection-first-color")) {
+    } else if (dialogMode == QStringLiteral("connection-first-color")) {
         SessionProfile profile;
         profile.color = SessionProfile::accentPalette().first();
         dialog = new ConnectionDialog(background, ConnectionDialog::Mode::Create, &profile);
-    } else if (mode == QStringLiteral("connection-switch")) {
+    } else if (dialogMode == QStringLiteral("connection-switch")) {
         dialog = new ConnectionDialog(background, ConnectionDialog::Mode::Create);
-    } else if (mode == QStringLiteral("hostkey") || mode == QStringLiteral("hostkey-mismatch")) {
-        const bool mismatch = mode.endsWith(QStringLiteral("mismatch"));
+    } else if (dialogMode == QStringLiteral("hostkey") || dialogMode == QStringLiteral("hostkey-mismatch")) {
+        const bool mismatch = dialogMode.endsWith(QStringLiteral("mismatch"));
         dialog = new HostKeyDialog(
             background, QStringLiteral("127.0.0.1"), 2222, QStringLiteral("ecdsa-sha2-nistp256"),
             QStringLiteral("SHA256:TH85xwODSs/tZ69umL1etFtGg29Z/kUCmBFpimbB43k"),
             mismatch ? QStringLiteral("SHA256:OLDOLDOLDOLDOLDOLDOLDOLDOLDOLDOLDOLDOLD")
                     : QString());
-    } else if (mode == QStringLiteral("password")) {
+    } else if (dialogMode == QStringLiteral("password")) {
         dialog = new PasswordDialog(background, PasswordDialog::Mode::Password,
                                     QStringLiteral("nyan@127.0.0.1:2222"),
                                     QStringLiteral("认证失败，请检查用户名与凭据。服务器允许：password"),
@@ -98,7 +100,7 @@ int main(int argc, char **argv)
 
     QTimer::singleShot(900, &app, [&] {
         QPixmap pixmap;
-        if (mode == QStringLiteral("connection-first-color")) {
+        if (grabOnly || mode == QStringLiteral("connection-first-color")) {
             pixmap = dialog->grab();
         } else {
             const QRect geometry = dialog->frameGeometry();

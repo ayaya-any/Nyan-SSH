@@ -22,7 +22,7 @@ if(QT_ROOT)
     list(PREPEND CMAKE_PREFIX_PATH "${QT_ROOT}")
 endif()
 
-find_package(Qt6 6.12 REQUIRED COMPONENTS Core Gui Widgets Svg)
+find_package(Qt6 6.12 REQUIRED COMPONENTS Core Gui Widgets Svg Network)
 qt_standard_project_setup(REQUIRES 6.5)
 set(CMAKE_AUTORCC ON)
 
@@ -118,6 +118,8 @@ qt_add_library(nyan_ui STATIC
     src/ui/FilePanel.h
     src/ui/Icons.cpp
     src/ui/Icons.h
+    src/ui/LatencyProbe.cpp
+    src/ui/LatencyProbe.h
     src/ui/MainWindow.cpp
     src/ui/MainWindow.h
     src/ui/MaterialIcons.cpp
@@ -138,7 +140,7 @@ qt_add_library(nyan_ui STATIC
     src/ui/WelcomePage.h
     resources/resources.qrc
 )
-target_link_libraries(nyan_ui PUBLIC nyan_core Qt6::Widgets Qt6::Svg)
+target_link_libraries(nyan_ui PUBLIC nyan_core Qt6::Widgets Qt6::Svg Qt6::Network)
 if(WIN32)
     target_link_libraries(nyan_ui PRIVATE dwmapi)
 endif()
@@ -193,6 +195,7 @@ if(NYAN_BUILD_TESTS)
     qt_add_executable(nyan_dialog_probe tests/dialog_probe.cpp)
     target_link_libraries(nyan_dialog_probe PRIVATE nyan_ui)
     set_target_properties(nyan_dialog_probe PROPERTIES WIN32_EXECUTABLE OFF)
+
     nyan_copy_openssl_runtime(nyan_dialog_probe)
 
     qt_add_executable(nyan_sftp_worker_test tests/sftp_worker_test.cpp)

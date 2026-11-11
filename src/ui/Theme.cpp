@@ -222,7 +222,7 @@ QTabBar {
 QTabBar::tab {
     background: transparent;
     color: %TEXT_MUTED%;
-    padding: 9px 16px;
+    padding: 9px 16px 9px 6px;
     margin-right: 4px;
     border: 1px solid transparent;
     border-bottom: 2px solid transparent;
@@ -238,6 +238,12 @@ QTabBar::tab:selected {
     background: %SURFACE_ALT%;
     color: %TEXT%;
     border-bottom: 2px solid %ACCENT%;
+}
+
+#latencyChip {
+    background: %SURFACE_ALT%;
+    border: 1px solid %BORDER%;
+    border-radius: 10px;
 }
 
 QScrollBar:vertical {
@@ -346,6 +352,16 @@ QComboBox, QSpinBox, QDoubleSpinBox, QDateEdit {
     padding: 6px 10px;
     min-height: 20px;
     selection-background-color: %ACCENT%;
+}
+QSpinBox, QDoubleSpinBox {
+    /* Keep the value clear of the frame and reserve room for the stepper. */
+    padding: 7px 28px 7px 4px;
+}
+QSpinBox:hover, QDoubleSpinBox:hover {
+    border-color: %BORDER_STRONG%;
+}
+QSpinBox:focus, QDoubleSpinBox:focus {
+    border-color: %ACCENT%;
 }
 QComboBox:hover, QSpinBox:hover {
     border-color: %BORDER_STRONG%;
