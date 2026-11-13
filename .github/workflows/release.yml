@@ -119,10 +119,10 @@ jobs:
           $previous = git describe --tags --abbrev=0 "$tag^" 2>$null
           if ($LASTEXITCODE -eq 0 -and $previous) {
               $range = "$previous..$tag"
-              $changes = git log $range --pretty=format:'- %s (%h)' --no-merges
+              $changes = (git log $range --pretty=format:'- %s (%h)' --no-merges) -join "`n"
               $previousLine = "上一版本：``$previous``"
           } else {
-              $changes = git log $tag --pretty=format:'- %s (%h)' --no-merges
+              $changes = (git log $tag --pretty=format:'- %s (%h)' --no-merges) -join "`n"
               $previousLine = '首个版本'
           }
           if ([string]::IsNullOrWhiteSpace($changes)) {
