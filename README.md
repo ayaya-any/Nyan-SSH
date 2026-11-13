@@ -62,8 +62,9 @@
 - Windows 10/11 x64。
 - Visual Studio 2022 或 2026，安装“使用 C++ 的桌面开发”（MSVC v143/v145）。
 - CMake ≥ 3.28（VS 自带版本即可）。
-- Qt **6.12.0**，套件 `msvc2022_64`，需要 `Widgets`、`Svg`、`Network`、`Test` 模块。
+- Qt **6.12.0** 为首选版本，套件 `msvc2022_64`，需要 `Widgets`、`Svg`、`Network`、`Test` 模块。
   默认自动探测 `D:\Qt\6.12.0\msvc2022_64` 或 `C:\Qt\6.12.0\msvc2022_64`；可通过 `-DQT_ROOT=...` 指定。
+  GitHub Release 目前使用公共 aqt 仓库最新可用的 **Qt 6.10.3**，构建时传入 `-AllowQt610` / `-DNYAN_ALLOW_QT_610=ON`；本地默认仍要求 Qt 6.12。
 - **OpenSSL 3.0+** 开发库。Windows 推荐：
   ```powershell
   vcpkg install openssl:x64-windows

@@ -22,9 +22,15 @@ if(QT_ROOT)
     list(PREPEND CMAKE_PREFIX_PATH "${QT_ROOT}")
 endif()
 
-find_package(Qt6 6.12 REQUIRED COMPONENTS Core Gui Widgets Svg Network)
+find_package(Qt6 6.10 REQUIRED COMPONENTS Core Gui Widgets Svg Network)
 qt_standard_project_setup(REQUIRES 6.5)
 set(CMAKE_AUTORCC ON)
+option(NYAN_ALLOW_QT_610 "Allow CI builds against the public Qt 6.10.3 archive" OFF)
+# The public aqt archive still has 6.10.3 as its newest build.  Local builds
+# keep the 6.12 requirement unless CI explicitly opts into the fallback.
+if(NOT NYAN_ALLOW_QT_610)
+    find_package(Qt6 6.12 REQUIRED COMPONENTS Core Gui Widgets Svg Network)
+endif()
 
 # ---- OpenSSL ----------------------------------------------------------------
 # OpenSSL is the portable libssh2 crypto backend.  On Windows, install it with

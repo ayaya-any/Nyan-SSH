@@ -3,6 +3,7 @@ param(
     [string]$Configuration = 'Debug',
     [string]$QtRoot = 'D:\Qt\6.12.0\msvc2022_64',
     [string]$OpenSslRoot = $env:OPENSSL_ROOT_DIR,
+    [switch]$AllowQt610,
     [switch]$Clean,
     [switch]$SkipTests,
     [switch]$SkipDeploy
@@ -53,6 +54,7 @@ $configureArgs = @(
     '-DNYAN_BUILD_TESTS=ON'
 )
 if ($OpenSslRoot) { $configureArgs += "-DOPENSSL_ROOT_DIR=$OpenSslRoot" }
+if ($AllowQt610) { $configureArgs += '-DNYAN_ALLOW_QT_610=ON' }
 if ($Clean) { $configureArgs += '--fresh' }
 
 & $cmake @configureArgs

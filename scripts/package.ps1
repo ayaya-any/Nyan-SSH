@@ -2,6 +2,7 @@ param(
     [string]$Configuration = 'Release',
     [string]$QtRoot = 'D:\Qt\6.12.0\msvc2022_64',
     [string]$OpenSslRoot = $env:OPENSSL_ROOT_DIR,
+    [switch]$AllowQt610,
     [switch]$SkipBuild
 )
 
@@ -19,7 +20,7 @@ $archive = Join-Path $distRoot "NyanSSH-$version-win64.zip"
 
 if (-not $SkipBuild) {
     & (Join-Path $PSScriptRoot 'build.ps1') -Configuration $Configuration -QtRoot $QtRoot `
-        -OpenSslRoot $OpenSslRoot -Clean -SkipTests
+        -OpenSslRoot $OpenSslRoot -AllowQt610:$AllowQt610 -Clean -SkipTests
 }
 
 $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"

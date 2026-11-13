@@ -35,12 +35,12 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          python -m aqt install-qt windows desktop 6.12.0 win64_msvc2022_64 `
-              --outputdir C:\Qt --modules qtsvg
+          python -m aqt install-qt windows desktop 6.10.3 win64_msvc2022_64 `
+              --outputdir C:\Qt
           if ($LASTEXITCODE -ne 0) {
               throw "Qt installation failed ($LASTEXITCODE)"
           }
-          $qtDir = 'C:\Qt\6.12.0\msvc2022_64'
+          $qtDir = 'C:\Qt\6.10.3\msvc2022_64'
           if (-not (Test-Path (Join-Path $qtDir 'bin\windeployqt.exe'))) {
               throw "Qt installation is incomplete (windeployqt not found)."
           }
@@ -70,7 +70,7 @@ jobs:
         shell: pwsh
         run: |
           .\scripts\build.ps1 -Configuration Release -Clean `
-              -QtRoot $env:QT_ROOT_DIR -OpenSslRoot $env:OPENSSL_ROOT
+              -QtRoot $env:QT_ROOT_DIR -OpenSslRoot $env:OPENSSL_ROOT -AllowQt610
 
       - name: Test
         shell: pwsh
@@ -147,7 +147,7 @@ jobs:
           ## 构建环境
 
           - 平台：Windows x64
-          - Qt：6.12.0（msvc2022_64）
+          - Qt：6.10.3（msvc2022_64；公共 aqt 仓库当前可用的最新版）
           - libssh2：1.11.1（CMake FetchContent）
           - OpenSSL：3.x（vcpkg x64-windows）
           - 编译器：MSVC x64 / C++20

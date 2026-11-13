@@ -3,6 +3,7 @@ param(
     [string]$Configuration = 'Debug',
     [string]$QtRoot = 'D:\Qt\6.12.0\msvc2022_64',
     [string]$OpenSslRoot = $env:OPENSSL_ROOT_DIR,
+    [switch]$AllowQt610,
     [int]$Port = 2222,
     [switch]$SkipBuild
 )
@@ -14,7 +15,8 @@ $serverScript = Join-Path $root 'tests\server\test_ssh_server.py'
 $serverProcess = $null
 
 if (-not $SkipBuild) {
-    & (Join-Path $PSScriptRoot 'build.ps1') -Configuration $Configuration -QtRoot $QtRoot -OpenSslRoot $OpenSslRoot -SkipTests
+    & (Join-Path $PSScriptRoot 'build.ps1') -Configuration $Configuration -QtRoot $QtRoot `
+        -OpenSslRoot $OpenSslRoot -AllowQt610:$AllowQt610 -SkipTests
 }
 
 $env:PATH = "$QtRoot\bin;$env:PATH"
