@@ -117,6 +117,24 @@ cmake --build --preset release
 
 执行 `cmake --install`（内含 Qt 部署脚本）并输出 `dist\NyanSSH-0.1.0-win64.zip`。
 
+## 自动发布
+
+仓库包含 tag 触发的 GitHub Actions 发布流程：
+[`.github/workflows/release.yml`](.github/workflows/release.yml)。
+
+发布步骤：
+
+1. 更新 `CMakeLists.txt` 中的 `project(NyanSSH VERSION ...)`，并提交到 `master`。
+2. 创建并推送标签：
+   ```powershell
+   git tag -a v0.1.1 -m "Nyan SSH v0.1.1"
+   git push origin v0.1.1
+   ```
+3. Actions 会自动安装 Qt/OpenSSL，构建并执行单元与 SSH/SFTP 集成测试，然后生成 ZIP、SHA-256 校验文件和 Release。
+
+发布页会包含：标签/版本/提交、上一版本对比、本次提交列表、构建环境、下载文件与 SHA-256、安装步骤和已知限制。标签版本必须与 `CMakeLists.txt` 中的工程版本一致（预发布标签如 `v0.1.1-beta.1` 匹配基础版本 `0.1.1`）。
+工作流添加前已经存在的 tag 不会回溯触发发布。
+
 ## 运行与数据
 
 默认数据目录：`%APPDATA%\NyanSSH\`

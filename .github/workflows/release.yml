@@ -1,0 +1,181 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: windows-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.12.0'
+          host: windows
+          target: desktop
+          arch: win64_msvc2022_64
+          cache: true
+
+      - name: Install OpenSSL
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $candidates = @($env:VCPKG_INSTALLATION_ROOT, 'C:\vcpkg', 'C:\Program Files\vcpkg')
+          $vcpkg = $candidates | Where-Object { $_ -and (Test-Path (Join-Path $_ 'vcpkg.exe')) } | Select-Object -First 1
+          if (-not $vcpkg) {
+              throw 'vcpkg was not found on the runner.'
+          }
+          & (Join-Path $vcpkg 'vcpkg.exe') install openssl:x64-windows --clean-after-build
+          if ($LASTEXITCODE -ne 0) {
+              throw "vcpkg OpenSSL install failed ($LASTEXITCODE)"
+          }
+          "OPENSSL_ROOT=$vcpkg\installed\x64-windows" >> $env:GITHUB_ENV
+
+      - name: Install test dependencies
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install paramiko
+        shell: pwsh
+        run: python -m pip install --disable-pip-version-check paramiko
+
+      - name: Build
+        shell: pwsh
+        run: |
+          .\scripts\build.ps1 -Configuration Release -Clean `
+              -QtRoot $env:QT_ROOT_DIR -OpenSslRoot $env:OPENSSL_ROOT
+
+      - name: Test
+        shell: pwsh
+        run: |
+          .\scripts\test.ps1 -Configuration Release -SkipBuild `
+              -QtRoot $env:QT_ROOT_DIR -OpenSslRoot $env:OPENSSL_ROOT
+
+      - name: Package
+        shell: pwsh
+        run: |
+          .\scripts\package.ps1 -Configuration Release -SkipBuild `
+              -QtRoot $env:QT_ROOT_DIR -OpenSslRoot $env:OPENSSL_ROOT
+
+      - name: Generate release notes
+        id: notes
+        shell: pwsh
+        env:
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $tag = $env:TAG_NAME
+          if ($tag -notmatch '^v(\d+\.\d+\.\d+)(?:[-+].*)?$') {
+              throw "Release tags must look like v1.2.3; got '$tag'."
+          }
+          $version = $Matches[1]
+          $cmake = Get-Content CMakeLists.txt -Raw
+          if ($cmake -notmatch 'project\(NyanSSH VERSION ([0-9]+\.[0-9]+\.[0-9]+)') {
+              throw 'Unable to read the project version from CMakeLists.txt.'
+          }
+          if ($Matches[1] -ne $version) {
+              throw "Tag version '$version' does not match CMake project version '$($Matches[1])'."
+          }
+
+          $zip = Get-ChildItem dist -Filter "NyanSSH-$version-win64.zip" |
+              Sort-Object LastWriteTime -Descending | Select-Object -First 1
+          if (-not $zip) {
+              throw "Package for version $version was not produced."
+          }
+          $hash = (Get-FileHash $zip.FullName -Algorithm SHA256).Hash.ToLower()
+          $size = '{0:N1} MB' -f ($zip.Length / 1MB)
+          $shaFile = "$($zip.FullName).sha256"
+          "$hash  $($zip.Name)" | Set-Content $shaFile -Encoding ascii
+          $commit = (git rev-parse --short HEAD)
+          $date = (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm 'UTC'")
+
+          $previous = git describe --tags --abbrev=0 "$tag^" 2>$null
+          if ($LASTEXITCODE -eq 0 -and $previous) {
+              $range = "$previous..$tag"
+              $changes = git log $range --pretty=format:'- %s (%h)' --no-merges
+              $previousLine = "上一版本：``$previous``"
+          } else {
+              $changes = git log $tag --pretty=format:'- %s (%h)' --no-merges
+              $previousLine = '首个版本'
+          }
+          if ([string]::IsNullOrWhiteSpace($changes)) {
+              $changes = '- 无新增提交'
+          }
+
+          $body = @"
+          # Nyan SSH $tag
+
+          ## 发布信息
+
+          - 标签：``$tag``
+          - 版本：``$version``
+          - 提交：``$commit``
+          - 构建时间：$date
+          - $previousLine
+
+          ## 本次变更
+
+          $changes
+
+          ## 构建环境
+
+          - 平台：Windows x64
+          - Qt：6.12.0（msvc2022_64）
+          - libssh2：1.11.1（CMake FetchContent）
+          - OpenSSL：3.x（vcpkg x64-windows）
+          - 编译器：MSVC x64 / C++20
+
+          ## 下载与校验
+
+          - 文件：``$($zip.Name)``（$size）
+          - SHA-256：``$hash``
+          - 校验文件：``$($zip.Name).sha256``
+
+          ## 安装
+
+          1. 下载并解压 ZIP。
+          2. 运行 ``NyanSSH.exe``。
+          3. 发布包已包含 Qt、OpenSSL 与 MSVC 运行库，无需额外安装运行时。
+
+          ## 已知限制
+
+          - 当前仅支持 Windows 10/11 x64；DPAPI 凭据存储和原生窗口逻辑仍为 Windows 专用。
+          - 私钥仅支持 PEM 格式；不支持 keyboard-interactive / OTP 多因素认证。
+          - 会话延迟为 TCP 连接往返近似值，不是 SSH keepalive RTT。
+          - 字体下拉框仅列出系统报告为 fixed pitch 的字体。
+
+          完整说明与截图见 [README](https://github.com/${{ github.repository }}#readme)。
+          "@
+          $body.Trim() | Set-Content release-notes.md -Encoding utf8
+          "version=$version" >> $env:GITHUB_OUTPUT
+          "sha256=$hash" >> $env:GITHUB_OUTPUT
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Nyan SSH ${{ github.ref_name }}
+          body_path: release-notes.md
+          files: |
+            dist/NyanSSH-${{ steps.notes.outputs.version }}-win64.zip
+            dist/NyanSSH-${{ steps.notes.outputs.version }}-win64.zip.sha256
+          fail_on_unmatched_files: true
+          draft: false
+          prerelease: ${{ contains(github.ref_name, '-') }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
