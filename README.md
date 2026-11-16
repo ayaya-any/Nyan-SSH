@@ -123,7 +123,7 @@ cmake --build --preset release
 .\scripts\package.ps1 -Configuration Release -OpenSslRoot $env:OPENSSL_ROOT_DIR
 ```
 
-执行 `cmake --install`（内含 Qt 部署脚本）并输出 `dist\NyanSSH-0.1.0-win64.zip`。
+执行 `cmake --install`（内含 Qt 部署脚本）并输出 `dist\NyanSSH-0.1.1-win64.zip`。
 
 ## 自动发布
 
@@ -140,7 +140,7 @@ cmake --build --preset release
    ```
 3. Actions 会自动安装 Qt/OpenSSL，构建并执行单元与 SSH/SFTP 集成测试，然后生成 ZIP、SHA-256 校验文件和 Release。
 
-发布页会包含：标签/版本/提交、上一版本对比、本次提交列表、构建环境、下载文件与 SHA-256、安装步骤和已知限制。标签版本必须与 `CMakeLists.txt` 中的工程版本一致（预发布标签如 `v0.1.1-beta.1` 匹配基础版本 `0.1.1`）。
+发布页会包含：标签/版本/提交、上一版本对比、版本亮点、本次提交列表、构建环境、下载文件与 SHA-256、安装步骤和已知限制。若仓库中存在 `docs/releases/<tag>.md`，其内容会作为“版本亮点”自动合入 Release 正文。标签版本必须与 `CMakeLists.txt` 中的工程版本一致（预发布标签如 `v0.1.1-beta.1` 匹配基础版本 `0.1.1`）。
 工作流添加前已经存在的 tag 不会回溯触发发布。
 
 ## 运行与数据

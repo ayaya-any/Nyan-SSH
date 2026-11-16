@@ -27,7 +27,7 @@ int main(int argc, char **argv)
     QApplication::setOrganizationName(QStringLiteral("Nyan"));
     QApplication::setOrganizationDomain(QStringLiteral("nyan.dev"));
     QApplication::setApplicationName(QStringLiteral("Nyan SSH"));
-    QApplication::setApplicationVersion(QStringLiteral("0.1.0"));
+    QApplication::setApplicationVersion(QStringLiteral("0.1.1"));
     QApplication::setApplicationDisplayName(QStringLiteral("Nyan SSH"));
     QApplication::setWindowIcon(QIcon(ui::Icons::logo(64, 2.0)));
 

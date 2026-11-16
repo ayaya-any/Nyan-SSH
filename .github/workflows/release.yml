@@ -129,6 +129,12 @@ jobs:
               $changes = '- 无新增提交'
           }
 
+          $highlightSection = ''
+          $releaseNotesPath = Join-Path 'docs/releases' "$tag.md"
+          if (Test-Path $releaseNotesPath) {
+              $highlightSection = "## 版本亮点`n`n" + ((Get-Content $releaseNotesPath -Raw).Trim()) + "`n`n"
+          }
+
           $body = @"
           # Nyan SSH $tag
 
@@ -140,7 +146,7 @@ jobs:
           - 构建时间：$date
           - $previousLine
 
-          ## 本次变更
+          $highlightSection## 本次变更
 
           $changes
 

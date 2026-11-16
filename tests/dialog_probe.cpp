@@ -25,7 +25,7 @@ int main(int argc, char **argv)
     QApplication app(argc, argv);
     QApplication::setStyle(QStringLiteral("Fusion"));
     QApplication::setApplicationName(QStringLiteral("Nyan SSH"));
-    QApplication::setApplicationVersion(QStringLiteral("0.1.0"));
+    QApplication::setApplicationVersion(QStringLiteral("0.1.1"));
 
     const QStringList args = app.arguments();
     const QString mode = args.size() > 1 ? args.at(1) : QStringLiteral("settings");
