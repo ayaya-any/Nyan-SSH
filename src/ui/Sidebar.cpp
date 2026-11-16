@@ -151,14 +151,33 @@ Sidebar::Sidebar(QWidget *parent)
     setAttribute(Qt::WA_StyledBackground, true);
     setFixedWidth(300);
 
-    auto *root = new QVBoxLayout(this);
+    auto *outer = new QVBoxLayout(this);
+    outer->setContentsMargins(0, 0, 0, 0);
+    outer->setSpacing(0);
+
+    m_expanded = new QWidget(this);
+    outer->addWidget(m_expanded);
+
+    auto *root = new QVBoxLayout(m_expanded);
     root->setContentsMargins(16, 16, 16, 16);
     root->setSpacing(12);
 
+    auto *topRow = new QHBoxLayout;
+    topRow->setContentsMargins(0, 0, 0, 0);
+    topRow->setSpacing(8);
     auto *newButton = new MButton(QStringLiteral("新建连接"), MButton::Variant::Filled);
     newButton->setIconName(QStringLiteral("plus"));
     connect(newButton, &QAbstractButton::clicked, this, &Sidebar::newConnectionRequested);
-    root->addWidget(newButton);
+    topRow->addWidget(newButton, 1);
+    auto *collapseButton = new MIconButton(QStringLiteral("chevron-left"),
+                                           QStringLiteral("收起侧边栏 (Ctrl+B)"), m_expanded);
+    collapseButton->setButtonSize(34);
+    connect(collapseButton, &QAbstractButton::clicked, this, [this] {
+        setCollapsed(true);
+        emit collapsedChanged(true);
+    });
+    topRow->addWidget(collapseButton, 0, Qt::AlignVCenter);
+    root->addLayout(topRow);
 
     m_search = new MTextField(QStringLiteral("搜索会话"), QStringLiteral("search"));
     m_search->setPlaceholder(QStringLiteral("名称、主机或用户名"));
@@ -221,10 +240,47 @@ Sidebar::Sidebar(QWidget *parent)
     footerLayout->addWidget(settings);
     root->addWidget(footerCard);
 
+    m_rail = new QWidget(this);
+    m_rail->setFixedWidth(46);
+    auto *railLayout = new QVBoxLayout(m_rail);
+    railLayout->setContentsMargins(7, 10, 7, 10);
+    railLayout->setSpacing(8);
+    auto *expandButton = new MIconButton(QStringLiteral("chevron-right"),
+                                         QStringLiteral("展开侧边栏 (Ctrl+B)"), m_rail);
+    expandButton->setButtonSize(32);
+    connect(expandButton, &QAbstractButton::clicked, this, [this] {
+        setCollapsed(false);
+        emit collapsedChanged(false);
+    });
+    railLayout->addWidget(expandButton, 0, Qt::AlignHCenter);
+    auto *railNewButton = new MIconButton(QStringLiteral("plus"), QStringLiteral("新建连接"), m_rail);
+    railNewButton->setButtonSize(32);
+    connect(railNewButton, &QAbstractButton::clicked, this, &Sidebar::newConnectionRequested);
+    railLayout->addWidget(railNewButton, 0, Qt::AlignHCenter);
+    railLayout->addStretch();
+    auto *railSettings = new MIconButton(QStringLiteral("settings"), QStringLiteral("设置"), m_rail);
+    railSettings->setButtonSize(32);
+    connect(railSettings, &QAbstractButton::clicked, this, &Sidebar::settingsRequested);
+    railLayout->addWidget(railSettings, 0, Qt::AlignHCenter);
+    outer->addWidget(m_rail);
+
+    setCollapsed(false);
+
     connect(&Theme::instance(), &Theme::changed, this, [this] {
         update();
         rebuild();
     });
+}
+
+void Sidebar::setCollapsed(bool collapsed)
+{
+    m_collapsed = collapsed;
+    if (m_expanded)
+        m_expanded->setVisible(!collapsed);
+    if (m_rail)
+        m_rail->setVisible(collapsed);
+    setFixedWidth(collapsed ? 46 : 300);
+    updateGeometry();
 }
 
 void Sidebar::paintEvent(QPaintEvent *)

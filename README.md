@@ -41,7 +41,7 @@
 - **VS 深色 / VS 浅色** 两套主题，参考 Visual Studio 2026 / VS Code 的配色与终端 ANSI 色板。
 - **Segoe UI Variable** 界面字体 + **Cascadia Mono** 终端字体，高 DPI 缩放，深浅主题即时切换。
 - **外观自定义**：窗口透明度可在 55%–100% 之间调节；支持选择本地背景图（自动裁切铺满并加可读性遮罩），可随时清除。
-- **可收起左侧栏**：标题栏按钮或 `Ctrl+B` 收起/展开，状态会持久化。
+- **可收起左侧栏**：侧边栏顶部的收起按钮或 `Ctrl+B` 收起/展开；收起后保留窄栏的展开、新建连接和设置入口，状态会持久化。
 - **会话独立窗口**：标签右键菜单、会话工具栏按钮或 `Ctrl+Shift+P` 将当前会话弹出为独立窗口；独立窗口的关闭/返回按钮会把同一会话移回标签页，不中断连接。
 
 ## 截图
@@ -58,9 +58,9 @@
 | --- | --- |
 | ![主机密钥](docs/screenshots/hostkey-dialog.png) | ![密码重试](docs/screenshots/password-dialog.png) |
 
-| 背景图 | 会话独立窗口 |
-| --- | --- |
-| ![背景图](docs/screenshots/background.png) | ![会话独立窗口](docs/screenshots/popout.png) |
+| 背景图 | 侧栏收起 | 会话独立窗口 |
+| --- | --- | --- |
+| ![背景图](docs/screenshots/background.png) | ![侧栏收起](docs/screenshots/sidebar-collapsed.png) | ![会话独立窗口](docs/screenshots/popout.png) |
 
 ## 构建
 

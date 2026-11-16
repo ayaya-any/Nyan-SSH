@@ -7,8 +7,6 @@ class QLabel;
 
 namespace nyan::ui {
 
-class MIconButton;
-
 class TitleBar : public QWidget {
     Q_OBJECT
 public:
@@ -16,7 +14,6 @@ public:
 
     void setMaximized(bool maximized);
     bool isMaximized() const { return m_maximized; }
-    void setSidebarCollapsed(bool collapsed);
     void setBackdropActive(bool active);
 
     /// True when the global position lies on a caption button.  MainWindow's
@@ -28,7 +25,6 @@ signals:
     void minimizeRequested();
     void maximizeToggleRequested();
     void closeRequested();
-    void sidebarToggleRequested();
 
 protected:
     void paintEvent(QPaintEvent *event) override;
@@ -38,7 +34,6 @@ private:
 
     QLabel *m_logo = nullptr;
     QLabel *m_title = nullptr;
-    MIconButton *m_sidebarToggle = nullptr;
     QAbstractButton *m_minimize = nullptr;
     QAbstractButton *m_maximize = nullptr;
     QAbstractButton *m_close = nullptr;

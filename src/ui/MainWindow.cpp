@@ -249,7 +249,6 @@ void MainWindow::buildUi()
             showMaximized();
     });
     connect(m_titleBar, &TitleBar::closeRequested, this, &QWidget::close);
-    connect(m_titleBar, &TitleBar::sidebarToggleRequested, this, &MainWindow::toggleSidebar);
     outer->addWidget(m_titleBar);
 
     auto *root = new QHBoxLayout;
@@ -263,6 +262,9 @@ void MainWindow::buildUi()
     connect(m_sidebar, &Sidebar::duplicateRequested, this, &MainWindow::duplicateProfile);
     connect(m_sidebar, &Sidebar::deleteRequested, this, &MainWindow::deleteProfile);
     connect(m_sidebar, &Sidebar::settingsRequested, this, &MainWindow::showSettings);
+    connect(m_sidebar, &Sidebar::collapsedChanged, this, [this](bool collapsed) {
+        setSidebarCollapsed(collapsed);
+    });
     root->addWidget(m_sidebar);
 
     auto *right = new QWidget;
@@ -912,9 +914,7 @@ void MainWindow::setSidebarCollapsed(bool collapsed, bool persist)
 {
     m_sidebarCollapsed = collapsed;
     if (m_sidebar)
-        m_sidebar->setVisible(!collapsed);
-    if (m_titleBar)
-        m_titleBar->setSidebarCollapsed(collapsed);
+        m_sidebar->setCollapsed(collapsed);
     if (persist) {
         m_settings.sidebarCollapsed = collapsed;
         m_settings.save();

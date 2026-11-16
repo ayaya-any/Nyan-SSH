@@ -1,7 +1,6 @@
 #include "ui/TitleBar.h"
 
 #include "ui/Icons.h"
-#include "ui/MaterialWidgets.h"
 #include "ui/Theme.h"
 
 #include <QAbstractButton>
@@ -122,12 +121,6 @@ TitleBar::TitleBar(QWidget *parent)
     m_title->setAttribute(Qt::WA_TransparentForMouseEvents);
     layout->addWidget(m_title, 0, Qt::AlignVCenter);
 
-    m_sidebarToggle = new MIconButton(QStringLiteral("menu"), QStringLiteral("收起侧边栏 (Ctrl+B)"), this);
-    m_sidebarToggle->setButtonSize(30);
-    layout->addSpacing(4);
-    layout->addWidget(m_sidebarToggle, 0, Qt::AlignVCenter);
-    connect(m_sidebarToggle, &QAbstractButton::clicked, this, &TitleBar::sidebarToggleRequested);
-
     layout->addStretch(1);
 
     m_controls = new QWidget(this);
@@ -169,15 +162,6 @@ void TitleBar::setMaximized(bool maximized)
     updateControlIcons();
 }
 
-void TitleBar::setSidebarCollapsed(bool collapsed)
-{
-    if (!m_sidebarToggle)
-        return;
-    m_sidebarToggle->setIconName(collapsed ? QStringLiteral("chevron-right") : QStringLiteral("menu"));
-    m_sidebarToggle->setToolTip(collapsed ? QStringLiteral("展开侧边栏 (Ctrl+B)")
-                                           : QStringLiteral("收起侧边栏 (Ctrl+B)"));
-}
-
 void TitleBar::setBackdropActive(bool active)
 {
     if (m_backdropActive == active)
@@ -196,7 +180,7 @@ void TitleBar::updateControlIcons()
 
 bool TitleBar::isControlAt(const QPoint &globalPosition) const
 {
-    QAbstractButton *buttons[] = {m_sidebarToggle, m_minimize, m_maximize, m_close};
+    QAbstractButton *buttons[] = {m_minimize, m_maximize, m_close};
     for (QAbstractButton *button : buttons) {
         if (!button || !button->isVisible())
             continue;

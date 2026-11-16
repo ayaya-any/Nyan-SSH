@@ -10,6 +10,7 @@ class QVBoxLayout;
 
 namespace nyan::ui {
 
+class MIconButton;
 class MTextField;
 
 class Sidebar : public QWidget {
@@ -21,6 +22,8 @@ public:
     void setActiveSessionCount(int count);
     void setFooterText(const QString &text);
     void setBackdropActive(bool active);
+    void setCollapsed(bool collapsed);
+    bool isCollapsed() const { return m_collapsed; }
 
 signals:
     void newConnectionRequested();
@@ -29,6 +32,7 @@ signals:
     void duplicateRequested(const QString &id);
     void deleteRequested(const QString &id);
     void settingsRequested();
+    void collapsedChanged(bool collapsed);
 
 protected:
     void paintEvent(QPaintEvent *event) override;
@@ -38,6 +42,8 @@ private:
     void applyFilter();
 
     QVector<SessionProfile> m_profiles;
+    QWidget *m_expanded = nullptr;
+    QWidget *m_rail = nullptr;
     MTextField *m_search = nullptr;
     QVBoxLayout *m_listLayout = nullptr;
     QWidget *m_listContainer = nullptr;
@@ -47,6 +53,7 @@ private:
     QLabel *m_footerDot = nullptr;
     int m_activeCount = 0;
     bool m_backdropActive = false;
+    bool m_collapsed = false;
 };
 
 } // namespace nyan::ui
