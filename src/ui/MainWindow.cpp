@@ -6,6 +6,7 @@
 #include "ui/Icons.h"
 #include "ui/MaterialWidgets.h"
 #include "ui/SessionTab.h"
+#include "ui/SessionWindow.h"
 #include "ui/SettingsDialog.h"
 #include "ui/Sidebar.h"
 #include "ui/Theme.h"
@@ -25,6 +26,8 @@
 #include <QGuiApplication>
 #include <QHBoxLayout>
 #include <QIcon>
+#include <QImage>
+#include <QImageReader>
 #include <QLabel>
 #include <QMenu>
 #include <QPainter>
@@ -51,6 +54,57 @@
 
 namespace nyan::ui {
 namespace {
+
+class BackdropWidget : public QWidget {
+public:
+    explicit BackdropWidget(QWidget *parent = nullptr)
+        : QWidget(parent)
+    {
+    }
+
+    void setImagePath(const QString &path)
+    {
+        if (path == m_path)
+            return;
+        m_path = path;
+        m_image = QPixmap();
+        if (!path.isEmpty()) {
+            QImageReader reader(path);
+            reader.setAutoTransform(true);
+            const QImage image = reader.read();
+            if (!image.isNull())
+                m_image = QPixmap::fromImage(image);
+        }
+        update();
+    }
+
+    bool hasImage() const { return !m_image.isNull(); }
+
+protected:
+    void paintEvent(QPaintEvent *) override
+    {
+        const Palette &palette = Theme::instance().palette();
+        QPainter painter(this);
+        painter.fillRect(rect(), palette.window);
+
+        if (!m_image.isNull() && width() > 0 && height() > 0) {
+            const QSize targetSize = m_image.size().scaled(size(), Qt::KeepAspectRatioByExpanding);
+            const QRect target(QPoint((width() - targetSize.width()) / 2,
+                                      (height() - targetSize.height()) / 2),
+                               targetSize);
+            painter.setRenderHint(QPainter::SmoothPixmapTransform, true);
+            painter.drawPixmap(target, m_image);
+
+            QColor overlay = palette.window;
+            overlay.setAlpha(165);
+            painter.fillRect(rect(), overlay);
+        }
+    }
+
+private:
+    QString m_path;
+    QPixmap m_image;
+};
 
 /// A tab close button with asymmetric internal padding: the icon is nudged
 /// away from the tab's right edge while the hit area remains comfortable.
@@ -166,6 +220,8 @@ MainWindow::MainWindow(QWidget *parent)
     setMinimumSize(1040, 660);
 
     buildUi();
+    applySettings();
+    setSidebarCollapsed(m_settings.sidebarCollapsed, false);
     loadData();
     restoreWindowState();
 }
@@ -178,7 +234,8 @@ MainWindow::~MainWindow()
 
 void MainWindow::buildUi()
 {
-    auto *central = new QWidget;
+    auto *central = new BackdropWidget;
+    m_backdrop = central;
     auto *outer = new QVBoxLayout(central);
     outer->setContentsMargins(0, 0, 0, 0);
     outer->setSpacing(0);
@@ -192,6 +249,7 @@ void MainWindow::buildUi()
             showMaximized();
     });
     connect(m_titleBar, &TitleBar::closeRequested, this, &QWidget::close);
+    connect(m_titleBar, &TitleBar::sidebarToggleRequested, this, &MainWindow::toggleSidebar);
     outer->addWidget(m_titleBar);
 
     auto *root = new QHBoxLayout;
@@ -248,6 +306,7 @@ void MainWindow::buildUi()
         QAction *reconnect = menu.addAction(QStringLiteral("重新连接"));
         QAction *filePanel = menu.addAction(QStringLiteral("文件面板"));
         filePanel->setEnabled(tab->state() == SshState::Connected);
+        QAction *popOut = menu.addAction(QStringLiteral("弹出为独立窗口"));
         QAction *copyHost = menu.addAction(QStringLiteral("复制主机地址"));
         menu.addSeparator();
         QAction *closeCurrent = menu.addAction(QStringLiteral("关闭标签页"));
@@ -261,6 +320,8 @@ void MainWindow::buildUi()
         } else if (chosen == filePanel) {
             m_tabs->setCurrentIndex(index);
             tab->setFilePanelVisible(!tab->isFilePanelVisible());
+        } else if (chosen == popOut) {
+            detachSession(tab);
         } else if (chosen == copyHost) {
             QGuiApplication::clipboard()->setText(tab->profile().subtitle());
             showSnackbar(QStringLiteral("主机地址已复制"));
@@ -307,6 +368,7 @@ void MainWindow::buildUi()
     rightLayout->addWidget(m_content, 1);
 
     auto *statusBar = new QWidget;
+    m_statusBar = statusBar;
     statusBar->setObjectName(QStringLiteral("appStatusBar"));
     statusBar->setFixedHeight(27);
     auto *statusLayout = new QHBoxLayout(statusBar);
@@ -333,7 +395,10 @@ void MainWindow::buildUi()
     connect(newShortcut, &QShortcut::activated, this, &MainWindow::newConnectionDialog);
     auto *settingsShortcut = new QShortcut(QKeySequence(Qt::CTRL | Qt::Key_Comma), this);
     connect(settingsShortcut, &QShortcut::activated, this, &MainWindow::showSettings);
-    auto *closeShortcut = new QShortcut(QKeySequence::Close, this);
+    auto *sidebarShortcut = new QShortcut(QKeySequence(Qt::CTRL | Qt::Key_B), this);
+    connect(sidebarShortcut, &QShortcut::activated, this, &MainWindow::toggleSidebar);
+    auto *popOutShortcut = new QShortcut(QKeySequence(QStringLiteral("Ctrl+Shift+P")), this);
+    connect(popOutShortcut, &QShortcut::activated, this, &MainWindow::detachCurrentSession);    auto *closeShortcut = new QShortcut(QKeySequence::Close, this);
     connect(closeShortcut, &QShortcut::activated, this, [this] {
         if (m_tabs->count() > 0)
             closeTab(m_tabs->currentIndex());
@@ -363,6 +428,7 @@ void MainWindow::buildUi()
             if (auto *tab = qobject_cast<SessionTab *>(m_tabs->widget(i)))
                 updateTabIcon(tab);
         }
+        applySettings();
         updateStatusBar();
         update();
     });
@@ -399,8 +465,7 @@ void MainWindow::updateActiveCount()
 int MainWindow::activeSessionCount() const
 {
     int count = 0;
-    for (int i = 0; i < m_tabs->count(); ++i) {
-        auto *tab = qobject_cast<SessionTab *>(m_tabs->widget(i));
+    for (SessionTab *tab : allSessionTabs()) {
         if (!tab)
             continue;
         const SshState state = tab->state();
@@ -444,7 +509,31 @@ SessionTab *MainWindow::tabForProfile(const QString &id) const
         if (tab && tab->sessionId() == id)
             return tab;
     }
+    for (auto it = m_detached.cbegin(); it != m_detached.cend(); ++it) {
+        if (it.key() && it.key()->sessionId() == id)
+            return it.key();
+    }
     return nullptr;
+}
+
+SessionWindow *MainWindow::windowForTab(SessionTab *tab) const
+{
+    return m_detached.value(tab);
+}
+
+QVector<SessionTab *> MainWindow::allSessionTabs() const
+{
+    QVector<SessionTab *> result;
+    result.reserve(m_tabs->count() + m_detached.size());
+    for (int i = 0; i < m_tabs->count(); ++i) {
+        if (auto *tab = qobject_cast<SessionTab *>(m_tabs->widget(i)))
+            result.append(tab);
+    }
+    for (auto it = m_detached.cbegin(); it != m_detached.cend(); ++it) {
+        if (it.key())
+            result.append(it.key());
+    }
+    return result;
 }
 
 void MainWindow::openSavedProfile(const QString &id)
@@ -455,8 +544,14 @@ void MainWindow::openSavedProfile(const QString &id)
         return;
     }
     if (SessionTab *tab = tabForProfile(id)) {
-        m_tabs->setCurrentWidget(tab);
-        m_content->setCurrentWidget(m_tabs);
+        if (SessionWindow *window = windowForTab(tab)) {
+            window->show();
+            window->raise();
+            window->activateWindow();
+        } else {
+            m_tabs->setCurrentWidget(tab);
+            m_content->setCurrentWidget(m_tabs);
+        }
         if (tab->state() == SshState::Idle || tab->state() == SshState::Disconnected
             || tab->state() == SshState::Failed) {
             tab->start();
@@ -473,11 +568,23 @@ void MainWindow::connectQuick(const SessionProfile &profile)
     openConnection(profile, false);
 }
 
+void MainWindow::detachCurrentSession()
+{
+    if (SessionTab *tab = currentTab())
+        detachSession(tab);
+}
+
 void MainWindow::openConnection(const SessionProfile &profile, bool persist)
 {
     if (SessionTab *existing = tabForProfile(profile.id)) {
-        m_tabs->setCurrentWidget(existing);
-        m_content->setCurrentWidget(m_tabs);
+        if (SessionWindow *window = windowForTab(existing)) {
+            window->show();
+            window->raise();
+            window->activateWindow();
+        } else {
+            m_tabs->setCurrentWidget(existing);
+            m_content->setCurrentWidget(m_tabs);
+        }
         existing->start();
         return;
     }
@@ -522,15 +629,24 @@ void MainWindow::openConnection(const SessionProfile &profile, bool persist)
     connect(tab, &SessionTab::termFontSizeChanged, this, [this](int size) {
         m_settings.terminalFontSize = qBound(7, size, 32);
         m_settings.save();
-        for (int i = 0; i < m_tabs->count(); ++i) {
-            if (auto *other = qobject_cast<SessionTab *>(m_tabs->widget(i)))
-                other->applySettings(&m_settings);
-        }
+        for (SessionTab *other : allSessionTabs())
+            other->applySettings(&m_settings);
     });
+    connect(tab, &SessionTab::popOutRequested, this, [this, tab] { detachSession(tab); });
+    connect(tab, &SessionTab::dockRequested, this, [this, tab] { reattachSessionTab(tab); });
+
+    attachSessionTab(tab);
+    tab->start();
+}
+
+void MainWindow::attachSessionTab(SessionTab *tab)
+{
+    if (!tab || m_tabs->indexOf(tab) >= 0)
+        return;
 
     const int index = m_tabs->addTab(tab, tab->displayTitle());
     m_tabs->setTabToolTip(index, QStringLiteral("%1\n%2")
-                                     .arg(tab->profile().displayName(), tab->profile().subtitle()));
+                                  .arg(tab->profile().displayName(), tab->profile().subtitle()));
     auto *closeButton = new TabCloseButton(m_tabs->tabBar());
     connect(closeButton, &QAbstractButton::clicked, this, [this, tab] {
         const int tabIndex = m_tabs->indexOf(tab);
@@ -541,8 +657,56 @@ void MainWindow::openConnection(const SessionProfile &profile, bool persist)
     updateTabIcon(tab);
     m_tabs->setCurrentIndex(index);
     m_content->setCurrentWidget(m_tabs);
+    updateActiveCount();
+    updateStatusBar();
     refreshLibrary();
-    tab->start();
+}
+
+void MainWindow::detachSession(SessionTab *tab)
+{
+    if (!tab || m_detached.contains(tab))
+        return;
+    const int index = m_tabs->indexOf(tab);
+    if (index < 0)
+        return;
+
+    m_tabs->removeTab(index);
+    auto *window = new SessionWindow(tab);
+    window->setWindowOpacity(qBound(55, m_settings.windowOpacity, 100) / 100.0);
+    m_detached.insert(tab, window);
+    tab->setDetached(true);
+    connect(window, &SessionWindow::reattachRequested, this, &MainWindow::reattachSession);
+    window->show();
+    window->setWindowOpacity(qBound(55, m_settings.windowOpacity, 100) / 100.0);
+    window->raise();
+    window->activateWindow();
+    if (m_tabs->count() == 0)
+        m_content->setCurrentWidget(m_welcome);
+    updateActiveCount();
+    updateStatusBar();
+    refreshLibrary();
+}
+
+void MainWindow::reattachSession(SessionWindow *window)
+{
+    if (!window)
+        return;
+    SessionTab *tab = window->takeSession();
+    if (!tab)
+        return;
+    m_detached.remove(tab);
+    tab->setDetached(false);
+    window->prepareForClose();
+    window->close();
+    window->deleteLater();
+    attachSessionTab(tab);
+    tab->focusTerminal();
+}
+
+void MainWindow::reattachSessionTab(SessionTab *tab)
+{
+    if (SessionWindow *window = m_detached.value(tab))
+        reattachSession(window);
 }
 
 void MainWindow::updateTabIcon(SessionTab *tab)
@@ -581,6 +745,18 @@ void MainWindow::closeTab(int index)
 
 void MainWindow::closeAllTabs()
 {
+    const QList<SessionWindow *> detached = m_detached.values();
+    m_detached.clear();
+    for (SessionWindow *window : detached) {
+        SessionTab *tab = window->takeSession();
+        window->prepareForClose();
+        window->close();
+        window->deleteLater();
+        if (tab) {
+            tab->disconnectSession();
+            delete tab;
+        }
+    }
     while (m_tabs->count() > 0) {
         auto *tab = qobject_cast<SessionTab *>(m_tabs->widget(0));
         m_tabs->removeTab(0);
@@ -678,10 +854,9 @@ void MainWindow::showSettings()
     m_settings = dialog.settings();
     m_settings.save();
     Theme::instance().setMode(m_settings.theme);
-    for (int i = 0; i < m_tabs->count(); ++i) {
-        if (auto *tab = qobject_cast<SessionTab *>(m_tabs->widget(i)))
-            tab->applySettings(&m_settings);
-    }
+    applySettings();
+    for (SessionTab *tab : allSessionTabs())
+        tab->applySettings(&m_settings);
     refreshLibrary();
     showSnackbar(QStringLiteral("设置已保存"));
 }
@@ -702,6 +877,53 @@ void MainWindow::showSnackbar(const QString &message, const QString &actionText)
 {
     if (m_snackbar)
         m_snackbar->showMessage(message, actionText);
+}
+
+void MainWindow::applySettings()
+{
+    if (!m_backdrop || !m_sidebar || !m_titleBar)
+        return;
+
+    setWindowOpacity(qBound(55, m_settings.windowOpacity, 100) / 100.0);
+
+    auto *backdrop = static_cast<BackdropWidget *>(m_backdrop);
+    backdrop->setImagePath(m_settings.backgroundImage);
+    backdrop->update();
+    const bool backdropActive = backdrop->hasImage();
+    m_sidebar->setBackdropActive(backdropActive);
+    m_titleBar->setBackdropActive(backdropActive);
+    if (m_welcome)
+        m_welcome->setBackdropActive(backdropActive);
+    for (SessionWindow *window : m_detached)
+        window->setWindowOpacity(qBound(55, m_settings.windowOpacity, 100) / 100.0);
+    if (m_statusBar) {
+        if (backdropActive) {
+            const Palette &palette = Theme::instance().palette();
+            m_statusBar->setStyleSheet(
+                QStringLiteral("QWidget#appStatusBar { background: %1; border-top: 1px solid %2; }")
+                    .arg(Theme::rgba(palette.sidebar, 218), palette.border.name()));
+        } else {
+            m_statusBar->setStyleSheet(QString());
+        }
+    }
+}
+
+void MainWindow::setSidebarCollapsed(bool collapsed, bool persist)
+{
+    m_sidebarCollapsed = collapsed;
+    if (m_sidebar)
+        m_sidebar->setVisible(!collapsed);
+    if (m_titleBar)
+        m_titleBar->setSidebarCollapsed(collapsed);
+    if (persist) {
+        m_settings.sidebarCollapsed = collapsed;
+        m_settings.save();
+    }
+}
+
+void MainWindow::toggleSidebar()
+{
+    setSidebarCollapsed(!m_sidebarCollapsed);
 }
 
 void MainWindow::runAutoLogin()
@@ -883,6 +1105,7 @@ void MainWindow::showEvent(QShowEvent *event)
         prepareNativeFrame();
         m_nativeFramePrepared = true;
     }
+    applySettings();
     if (m_titleBar)
         m_titleBar->setMaximized(windowIsMaximized());
     if (!m_shown) {
@@ -930,3 +1153,4 @@ void MainWindow::closeEvent(QCloseEvent *event)
 }
 
 } // namespace nyan::ui
+

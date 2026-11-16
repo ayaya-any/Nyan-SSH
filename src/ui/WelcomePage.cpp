@@ -227,11 +227,20 @@ WelcomePage::WelcomePage(QWidget *parent)
     });
 }
 
+void WelcomePage::setBackdropActive(bool active)
+{
+    if (m_backdropActive == active)
+        return;
+    m_backdropActive = active;
+    update();
+}
+
 void WelcomePage::paintEvent(QPaintEvent *)
 {
     const Palette &palette = Theme::instance().palette();
     QPainter painter(this);
-    painter.fillRect(rect(), palette.window);
+    if (!m_backdropActive)
+        painter.fillRect(rect(), palette.window);
 
     QRadialGradient topRight(QPointF(width() * 0.88, -40), width() * 0.66);
     QColor accentGlow = palette.accent;

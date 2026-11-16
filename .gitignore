@@ -8,6 +8,8 @@ _probe/
 # Test server runtime artefacts
 tests/server/host_ecdsa.key
 tests/server/host_rsa.key
+tests/server/client_rsa.key
+tests/server/client_rsa.pub
 tests/server/sftp_root/
 tests/server/server.log
 tests/server/server.err.log

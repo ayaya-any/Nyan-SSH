@@ -230,10 +230,21 @@ Sidebar::Sidebar(QWidget *parent)
 void Sidebar::paintEvent(QPaintEvent *)
 {
     const Palette &palette = Theme::instance().palette();
+    QColor background = palette.sidebar;
+    if (m_backdropActive)
+        background.setAlpha(218);
     QPainter painter(this);
-    painter.fillRect(rect(), palette.sidebar);
+    painter.fillRect(rect(), background);
     painter.setPen(QPen(palette.border, 1));
     painter.drawLine(width() - 1, 0, width() - 1, height());
+}
+
+void Sidebar::setBackdropActive(bool active)
+{
+    if (m_backdropActive == active)
+        return;
+    m_backdropActive = active;
+    update();
 }
 
 void Sidebar::setProfiles(const QVector<SessionProfile> &profiles)

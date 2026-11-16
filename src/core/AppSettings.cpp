@@ -16,6 +16,9 @@ void AppSettings::load()
     QSettings settings(m_path, QSettings::IniFormat);
 
     theme = themeFromName(settings.value(QStringLiteral("appearance/theme"), QStringLiteral("dark")).toString());
+    windowOpacity = settings.value(QStringLiteral("appearance/windowOpacity"), 100).toInt();
+    backgroundImage = settings.value(QStringLiteral("appearance/backgroundImage")).toString();
+    sidebarCollapsed = settings.value(QStringLiteral("appearance/sidebarCollapsed"), false).toBool();
     terminalFontFamily = settings
                              .value(QStringLiteral("terminal/fontFamily"), QStringLiteral("Cascadia Mono"))
                              .toString();
@@ -31,6 +34,7 @@ void AppSettings::load()
 
     terminalFontSize = qBound(7, terminalFontSize, 32);
     scrollbackLines = qBound(500, scrollbackLines, 100000);
+    windowOpacity = qBound(55, windowOpacity, 100);
 }
 
 void AppSettings::save()
@@ -39,6 +43,9 @@ void AppSettings::save()
     QSettings settings(m_path, QSettings::IniFormat);
 
     settings.setValue(QStringLiteral("appearance/theme"), themeName(theme));
+    settings.setValue(QStringLiteral("appearance/windowOpacity"), windowOpacity);
+    settings.setValue(QStringLiteral("appearance/backgroundImage"), backgroundImage);
+    settings.setValue(QStringLiteral("appearance/sidebarCollapsed"), sidebarCollapsed);
     settings.setValue(QStringLiteral("terminal/fontFamily"), terminalFontFamily);
     settings.setValue(QStringLiteral("terminal/fontSize"), terminalFontSize);
     settings.setValue(QStringLiteral("terminal/scrollback"), scrollbackLines);

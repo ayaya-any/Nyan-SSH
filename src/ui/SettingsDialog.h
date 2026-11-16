@@ -4,6 +4,8 @@
 #include "ui/MaterialWidgets.h"
 
 class QComboBox;
+class QLabel;
+class QSlider;
 class QSpinBox;
 
 namespace nyan::ui {
@@ -18,6 +20,10 @@ public:
 private:
     AppSettings m_settings;
     MSegmentedControl *m_theme = nullptr;
+    QSlider *m_opacity = nullptr;
+    QLabel *m_opacityValue = nullptr;
+    QLabel *m_backgroundPath = nullptr;
+    QString m_backgroundImage;
     QComboBox *m_fontFamily = nullptr;
     QSpinBox *m_fontSize = nullptr;
     QSpinBox *m_scrollback = nullptr;

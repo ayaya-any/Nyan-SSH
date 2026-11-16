@@ -134,6 +134,8 @@ qt_add_library(nyan_ui STATIC
     src/ui/MaterialWidgets.h
     src/ui/SessionTab.cpp
     src/ui/SessionTab.h
+    src/ui/SessionWindow.cpp
+    src/ui/SessionWindow.h
     src/ui/SettingsDialog.cpp
     src/ui/SettingsDialog.h
     src/ui/Sidebar.cpp
@@ -203,6 +205,7 @@ if(NYAN_BUILD_TESTS)
     set_target_properties(nyan_dialog_probe PROPERTIES WIN32_EXECUTABLE OFF)
 
     nyan_copy_openssl_runtime(nyan_dialog_probe)
+
 
     qt_add_executable(nyan_sftp_worker_test tests/sftp_worker_test.cpp)
     target_link_libraries(nyan_sftp_worker_test PRIVATE nyan_core)

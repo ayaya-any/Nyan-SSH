@@ -3,10 +3,13 @@
 #include "ui/Theme.h"
 
 #include <QComboBox>
+#include <QFileDialog>
+#include <QFileInfo>
 #include <QFontDatabase>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QLineEdit>
+#include <QSlider>
 #include <QSpinBox>
 #include <QVBoxLayout>
 
@@ -66,6 +69,7 @@ SettingsDialog::SettingsDialog(QWidget *parent, const AppSettings &current)
 {
     setPreferredWidth(560);
     setSubtitle(QStringLiteral("外观、终端与文件管理偏好"));
+    contentLayout()->setSpacing(10);
 
     contentLayout()->addWidget(sectionTitle(QStringLiteral("外观")));
     auto *themeRow = new QWidget;
@@ -80,6 +84,81 @@ SettingsDialog::SettingsDialog(QWidget *parent, const AppSettings &current)
     m_theme->setFixedWidth(240);
     themeLayout->addWidget(m_theme);
     contentLayout()->addWidget(themeRow);
+
+    auto *opacityRow = new QWidget;
+    auto *opacityLayout = new QHBoxLayout(opacityRow);
+    opacityLayout->setContentsMargins(0, 0, 0, 0);
+    opacityLayout->setSpacing(12);
+    auto *opacityLabel = new QLabel(QStringLiteral("窗口透明度"));
+    opacityLabel->setFont(Theme::instance().uiFont(9.5));
+    opacityLayout->addWidget(opacityLabel);
+    opacityLayout->addStretch();
+    m_opacity = new QSlider(Qt::Horizontal);
+    m_opacity->setRange(55, 100);
+    m_opacity->setSingleStep(1);
+    m_opacity->setPageStep(5);
+    m_opacity->setFixedWidth(220);
+    m_opacity->setValue(m_settings.windowOpacity);
+    m_opacity->setToolTip(QStringLiteral("调整整个主窗口的不透明度（55% - 100%）"));
+    opacityLayout->addWidget(m_opacity);
+    m_opacityValue = new QLabel(QStringLiteral("%1%").arg(m_opacity->value()));
+    m_opacityValue->setFixedWidth(42);
+    m_opacityValue->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+    m_opacityValue->setFont(Theme::instance().uiFont(8.5));
+    opacityLayout->addWidget(m_opacityValue);
+    contentLayout()->addWidget(opacityRow);
+
+    connect(m_opacity, &QSlider::valueChanged, this, [this](int value) {
+        m_opacityValue->setText(QStringLiteral("%1%").arg(value));
+    });
+
+    auto *backgroundRow = new QWidget;
+    auto *backgroundLayout = new QHBoxLayout(backgroundRow);
+    backgroundLayout->setContentsMargins(0, 0, 0, 0);
+    backgroundLayout->setSpacing(8);
+    auto *backgroundLabel = new QLabel(QStringLiteral("背景图"));
+    backgroundLabel->setFont(Theme::instance().uiFont(9.5));
+    backgroundLayout->addWidget(backgroundLabel);
+    m_backgroundImage = m_settings.backgroundImage;
+    m_backgroundPath = new QLabel;
+    m_backgroundPath->setProperty("role", QStringLiteral("muted"));
+    m_backgroundPath->setFont(Theme::instance().uiFont(8.5));
+    m_backgroundPath->setMinimumWidth(120);
+    m_backgroundPath->setMaximumWidth(220);
+    backgroundLayout->addWidget(m_backgroundPath, 1);
+    auto *chooseBackground = new MButton(QStringLiteral("选择图片"), MButton::Variant::Outlined);
+    chooseBackground->setCompact(true);
+    backgroundLayout->addWidget(chooseBackground);
+    auto *clearBackground = new MButton(QStringLiteral("清除"), MButton::Variant::Text);
+    clearBackground->setCompact(true);
+    backgroundLayout->addWidget(clearBackground);
+    contentLayout()->addWidget(backgroundRow);
+
+    auto updateBackgroundLabel = [this, clearBackground] {
+        const QString name = m_backgroundImage.isEmpty()
+                                 ? QStringLiteral("未设置")
+                                 : QFileInfo(m_backgroundImage).fileName();
+        m_backgroundPath->setText(name);
+        m_backgroundPath->setToolTip(m_backgroundImage);
+        clearBackground->setEnabled(!m_backgroundImage.isEmpty());
+    };
+    updateBackgroundLabel();
+    connect(chooseBackground, &QAbstractButton::clicked, this, [this, updateBackgroundLabel] {
+        const QString start = m_backgroundImage.isEmpty()
+                                  ? QString()
+                                  : QFileInfo(m_backgroundImage).absolutePath();
+        const QString path = QFileDialog::getOpenFileName(
+            this, QStringLiteral("选择背景图"), start,
+            QStringLiteral("图片 (*.png *.jpg *.jpeg *.bmp *.webp)"));
+        if (path.isEmpty())
+            return;
+        m_backgroundImage = path;
+        updateBackgroundLabel();
+    });
+    connect(clearBackground, &QAbstractButton::clicked, this, [this, updateBackgroundLabel] {
+        m_backgroundImage.clear();
+        updateBackgroundLabel();
+    });
 
     contentLayout()->addWidget(sectionTitle(QStringLiteral("终端")));
     auto *fontRow = new QWidget;
@@ -181,6 +260,8 @@ SettingsDialog::SettingsDialog(QWidget *parent, const AppSettings &current)
     connect(cancel, &QAbstractButton::clicked, this, &QDialog::reject);
     connect(save, &QAbstractButton::clicked, this, [this] {
         m_settings.theme = m_theme->currentIndex() == 1 ? ThemeMode::Light : ThemeMode::Dark;
+        m_settings.windowOpacity = m_opacity->value();
+        m_settings.backgroundImage = m_backgroundImage;
         m_settings.terminalFontFamily = m_fontFamily->currentText();
         m_settings.terminalFontSize = m_fontSize->value();
         m_settings.scrollbackLines = m_scrollback->value();
@@ -193,7 +274,8 @@ SettingsDialog::SettingsDialog(QWidget *parent, const AppSettings &current)
     });
     addFooterButton(cancel);
     addFooterButton(save);
-    save->setFocus();
 }
 
 } // namespace nyan::ui
+
+

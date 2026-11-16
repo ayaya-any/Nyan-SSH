@@ -1,4 +1,5 @@
 #include "core/HostKeyStore.h"
+#include "core/AppSettings.h"
 #include "core/SecretStore.h"
 #include "core/SessionProfile.h"
 #include "core/SessionStore.h"
@@ -47,6 +48,30 @@ private slots:
         profile.setPassword(QStringLiteral("not-persisted"), false);
         QVERIFY(profile.toJson().value(QStringLiteral("password")).toString().isEmpty());
         QCOMPARE(profile.password(), QStringLiteral("not-persisted"));
+    }
+
+    void appearanceSettingsRoundTrip()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString path = dir.filePath(QStringLiteral("settings.ini"));
+
+        AppSettings settings(path);
+        settings.windowOpacity = 72;
+        settings.backgroundImage = QStringLiteral("C:\\wallpaper.png");
+        settings.sidebarCollapsed = true;
+        settings.save();
+
+        AppSettings loaded(path);
+        loaded.load();
+        QCOMPARE(loaded.windowOpacity, 72);
+        QCOMPARE(loaded.backgroundImage, QStringLiteral("C:\\wallpaper.png"));
+        QCOMPARE(loaded.sidebarCollapsed, true);
+
+        settings.windowOpacity = 10;
+        settings.save();
+        loaded.load();
+        QCOMPARE(loaded.windowOpacity, 55);
     }
 
     void storeRoundTrip()

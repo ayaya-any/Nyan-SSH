@@ -20,6 +20,7 @@ public:
     void setProfiles(const QVector<SessionProfile> &profiles);
     void setActiveSessionCount(int count);
     void setFooterText(const QString &text);
+    void setBackdropActive(bool active);
 
 signals:
     void newConnectionRequested();
@@ -45,6 +46,7 @@ private:
     QLabel *m_footerLabel = nullptr;
     QLabel *m_footerDot = nullptr;
     int m_activeCount = 0;
+    bool m_backdropActive = false;
 };
 
 } // namespace nyan::ui

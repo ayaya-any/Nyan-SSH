@@ -150,6 +150,16 @@ void SessionTab::buildUi()
     connect(m_sftpButton, &QAbstractButton::clicked, this, &SessionTab::toggleFilePanel);
     toolbarLayout->addWidget(m_sftpButton);
 
+    m_popoutButton = new MIconButton(QStringLiteral("external"), QStringLiteral("弹出为独立窗口"), toolbar);
+    m_popoutButton->setButtonSize(30);
+    connect(m_popoutButton, &QAbstractButton::clicked, this, [this] {
+        if (m_detached)
+            emit dockRequested();
+        else
+            emit popOutRequested();
+    });
+    toolbarLayout->addWidget(m_popoutButton);
+
     m_reconnectButton = new MIconButton(QStringLiteral("refresh"), QStringLiteral("重新连接"), toolbar);
     m_reconnectButton->setButtonSize(30);
     connect(m_reconnectButton, &QAbstractButton::clicked, this, [this] {
@@ -285,6 +295,18 @@ void SessionTab::applySettings(AppSettings *settings)
     }
     if (m_filePanel)
         m_filePanel->setSettings(m_settings);
+}
+
+void SessionTab::setDetached(bool detached)
+{
+    if (m_detached == detached)
+        return;
+    m_detached = detached;
+    if (m_popoutButton) {
+        m_popoutButton->setIconName(detached ? QStringLiteral("dock") : QStringLiteral("external"));
+        m_popoutButton->setToolTip(detached ? QStringLiteral("返回主窗口")
+                                            : QStringLiteral("弹出为独立窗口"));
+    }
 }
 
 void SessionTab::start()

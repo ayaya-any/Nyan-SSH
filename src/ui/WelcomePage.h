@@ -20,6 +20,7 @@ public:
     void setProfiles(const QVector<SessionProfile> &profiles);
     void setStats(int savedSessions, int trustedHosts);
     void focusQuickConnect();
+    void setBackdropActive(bool active);
 
 signals:
     void newConnectionRequested();
@@ -43,6 +44,7 @@ private:
     QWidget *m_recentContainer = nullptr;
     QLabel *m_recentEmpty = nullptr;
     QLabel *m_statsLabel = nullptr;
+    bool m_backdropActive = false;
 };
 
 } // namespace nyan::ui

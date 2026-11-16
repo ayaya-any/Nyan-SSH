@@ -43,6 +43,8 @@ public:
     void setFilePanelVisible(bool visible);
     bool isFilePanelVisible() const;
     void applySettings(AppSettings *settings);
+    void setDetached(bool detached);
+    bool isDetached() const { return m_detached; }
 
     const SessionProfile &profile() const { return m_profile; }
     QString sessionId() const { return m_profile.id; }
@@ -55,6 +57,8 @@ signals:
     void notify(const QString &message, const QString &actionText);
     void sessionProfileChanged(const nyan::SessionProfile &profile);
     void termFontSizeChanged(int pointSize);
+    void popOutRequested();
+    void dockRequested();
 
 private:
     enum class Page {
@@ -104,6 +108,7 @@ private:
     bool m_everConnected = false;
     bool m_promptingSecret = false;
     bool m_destroying = false;
+    bool m_detached = false;
 
     QLabel *m_statusDot = nullptr;
     QLabel *m_stateLabel = nullptr;
@@ -115,6 +120,7 @@ private:
     int m_latencyMs = -1;
     MIconButton *m_securityButton = nullptr;
     MIconButton *m_sftpButton = nullptr;
+    MIconButton *m_popoutButton = nullptr;
     MIconButton *m_reconnectButton = nullptr;
     MIconButton *m_disconnectButton = nullptr;
     QStackedWidget *m_stack = nullptr;

@@ -1,6 +1,7 @@
 #include "ui/TitleBar.h"
 
 #include "ui/Icons.h"
+#include "ui/MaterialWidgets.h"
 #include "ui/Theme.h"
 
 #include <QAbstractButton>
@@ -120,6 +121,13 @@ TitleBar::TitleBar(QWidget *parent)
     m_title->setFont(Theme::instance().displayFont(11, QFont::DemiBold));
     m_title->setAttribute(Qt::WA_TransparentForMouseEvents);
     layout->addWidget(m_title, 0, Qt::AlignVCenter);
+
+    m_sidebarToggle = new MIconButton(QStringLiteral("menu"), QStringLiteral("收起侧边栏 (Ctrl+B)"), this);
+    m_sidebarToggle->setButtonSize(30);
+    layout->addSpacing(4);
+    layout->addWidget(m_sidebarToggle, 0, Qt::AlignVCenter);
+    connect(m_sidebarToggle, &QAbstractButton::clicked, this, &TitleBar::sidebarToggleRequested);
+
     layout->addStretch(1);
 
     m_controls = new QWidget(this);
@@ -161,6 +169,24 @@ void TitleBar::setMaximized(bool maximized)
     updateControlIcons();
 }
 
+void TitleBar::setSidebarCollapsed(bool collapsed)
+{
+    if (!m_sidebarToggle)
+        return;
+    m_sidebarToggle->setIconName(collapsed ? QStringLiteral("chevron-right") : QStringLiteral("menu"));
+    m_sidebarToggle->setToolTip(collapsed ? QStringLiteral("展开侧边栏 (Ctrl+B)")
+                                           : QStringLiteral("收起侧边栏 (Ctrl+B)"));
+}
+
+void TitleBar::setBackdropActive(bool active)
+{
+    if (m_backdropActive == active)
+        return;
+    m_backdropActive = active;
+    setAttribute(Qt::WA_OpaquePaintEvent, !active);
+    update();
+}
+
 void TitleBar::updateControlIcons()
 {
     auto *maximize = static_cast<WindowControlButton *>(m_maximize);
@@ -170,8 +196,9 @@ void TitleBar::updateControlIcons()
 
 bool TitleBar::isControlAt(const QPoint &globalPosition) const
 {
-    for (QAbstractButton *button : {m_minimize, m_maximize, m_close}) {
-        if (!button->isVisible())
+    QAbstractButton *buttons[] = {m_sidebarToggle, m_minimize, m_maximize, m_close};
+    for (QAbstractButton *button : buttons) {
+        if (!button || !button->isVisible())
             continue;
         const QPoint local = button->mapFromGlobal(globalPosition);
         if (button->rect().contains(local))
@@ -188,13 +215,19 @@ bool TitleBar::isOnTitleBar(const QPoint &globalPosition) const
 void TitleBar::paintEvent(QPaintEvent *)
 {
     const Palette &palette = Theme::instance().palette();
+    QColor sidebar = palette.sidebar;
+    QColor right = palette.window;
+    if (m_backdropActive) {
+        sidebar.setAlpha(218);
+        right.setAlpha(218);
+    }
+
     QPainter painter(this);
-    painter.fillRect(rect(), palette.sidebar);
+    painter.fillRect(rect(), sidebar);
 
     QLinearGradient gradient(0, 0, width(), 0);
-    gradient.setColorAt(0.0, palette.sidebar);
-    gradient.setColorAt(0.72, palette.sidebar);
-    QColor right = palette.window;
+    gradient.setColorAt(0.0, sidebar);
+    gradient.setColorAt(0.72, sidebar);
     gradient.setColorAt(1.0, right);
     painter.fillRect(rect(), gradient);
 

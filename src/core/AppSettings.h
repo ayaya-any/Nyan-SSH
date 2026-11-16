@@ -17,6 +17,9 @@ public:
     void save();
 
     ThemeMode theme = ThemeMode::Dark;
+    int windowOpacity = 100;
+    QString backgroundImage;
+    bool sidebarCollapsed = false;
     QString terminalFontFamily = QStringLiteral("Cascadia Mono");
     int terminalFontSize = 11;
     int scrollbackLines = 5000;

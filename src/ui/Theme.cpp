@@ -180,9 +180,6 @@ QWidget#dialogSurface {
     border: 1px solid %BORDER%;
     border-radius: 16px;
 }
-QWidget#sidebar {
-    background: %SIDEBAR%;
-}
 QWidget#appStatusBar {
     background: %SIDEBAR%;
     border-top: 1px solid %BORDER%;
@@ -501,6 +498,26 @@ QProgressBar {
 QProgressBar::chunk {
     background: %ACCENT%;
     border-radius: 4px;
+}
+QSlider::groove:horizontal {
+    height: 4px;
+    background: %BORDER%;
+    border-radius: 2px;
+}
+QSlider::sub-page:horizontal {
+    background: %ACCENT%;
+    border-radius: 2px;
+}
+QSlider::handle:horizontal {
+    width: 14px;
+    height: 14px;
+    margin: -6px 0;
+    border-radius: 7px;
+    background: %TEXT%;
+    border: 2px solid %ACCENT%;
+}
+QSlider::handle:horizontal:hover {
+    background: %ACCENT%;
 }
 QToolButton {
     background: transparent;
